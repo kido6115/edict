@@ -742,7 +742,7 @@
 
   <!-- ══ 模型配置 ══ -->
   <div class="panel" id="panel-models">
-    <div class="sec-title" style="margin-bottom:14px">各省部 · 模型配置 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted)">— 更改后自动重启 Gateway（约5秒）</span></div>
+    <div class="sec-title" style="margin-bottom:14px">各省部 · 模型配置 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--muted)">— 更改后写入 .claude/agents，下次调用即生效</span></div>
     <div class="model-grid" id="model-grid"></div>
     <div class="cl-wrap"><div class="cl-title">变更记录</div><div id="cl-list"></div></div>
   </div>
@@ -1151,7 +1151,7 @@ function renderAgentsStatus(data){
     <div class="as-panel">
       <div class="as-header">
         <span class="as-title">🔌 Agent 在线状态</span>
-        <span class="as-gw ${gwCls}">Gateway: ${esc(gw.status||'未知')}</span>
+        <span class="as-gw ${gwCls}">Claude Code: ${esc(gw.status||'未知')}</span>
         <button class="as-refresh" onclick="loadAgentsStatus()" title="刷新状态">🔄 刷新</button>
         ${offline+unconf>0?`<button class="as-wake-all" onclick="wakeAllAgents()" title="唤醒所有离线Agent">⚡ 全部唤醒</button>`:''}
       </div>
@@ -1868,7 +1868,7 @@ async function applyModel(id){
   const s=document.getElementById('sel-'+id),b=document.getElementById('btn-'+id),st=document.getElementById('mcs-'+id);
   if(!s||!b)return;b.disabled=true;st.className='mc-st pending';st.textContent='⟳ 提交中…';
   try{const r=await postJ(API+'/set-model',{agentId:id,model:s.value});
-    if(r.ok){st.className='mc-st ok';st.textContent='✅ 已提交，Gateway 重启中（约5秒）';toast(id+'模型已更改','ok');setTimeout(()=>loadAgentConfig(),5500)}
+    if(r.ok){st.className='mc-st ok';st.textContent='✅ 已提交，下次调用该 Agent 时生效';toast(id+'模型已更改','ok');setTimeout(()=>loadAgentConfig(),5500)}
     else{st.className='mc-st err';st.textContent='❌ '+( r.error||'错误');b.disabled=false}
   }catch(e){st.className='mc-st err';st.textContent='❌ 无法连接服务器';b.disabled=false}
 }
@@ -1955,7 +1955,7 @@ function openAddSkillForm(agentId, agentLabel){
     <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:18px;font-size:12px;line-height:1.7;color:var(--muted)">
       <b style="color:var(--text)">📋 Skill 规范说明</b><br>
       • 技能名称使用<b style="color:var(--text)">小写英文 + 连字符</b>，如 <code style="background:var(--bg);padding:2px 6px;border-radius:4px">data-analysis</code>、<code style="background:var(--bg);padding:2px 6px;border-radius:4px">code-review</code><br>
-      • 创建后会在 <code style="background:var(--bg);padding:2px 6px;border-radius:4px">~/.openclaw/workspace-${esc(agentId)}/skills/{name}/SKILL.md</code> 生成模板文件<br>
+      • 创建后会在 <code style="background:var(--bg);padding:2px 6px;border-radius:4px">agents/${esc(agentId)}/skills/{name}/SKILL.md</code> 生成模板文件<br>
       • SKILL.md 使用 <b style="color:var(--text)">YAML frontmatter</b> 头部（name + description），正文为 Markdown 格式<br>
       • 技能会在 agent 收到相关任务时<b style="color:var(--text)">自动激活</b>，无需手动触发
     </div>
@@ -3224,12 +3224,12 @@ async function executeTemplate(e, tplId){
   if(!cmd.trim()){ toast('请填写必填参数','err'); return; }
   const t = TEMPLATES.find(x=>x.id===tplId);
 
-  // 前置校验：检测 Gateway 和关键 Agent 是否在线
+  // 前置校验：检测 claude CLI 和关键 Agent 是否就绪
   try{
     const st = await fetchJ(API+'/agents-status');
     if(st.ok && st.gateway && !st.gateway.alive){
-      toast('⚠️ Gateway 未启动，任务将无法派发！请先运行 openclaw gateway start','err',6000);
-      if(!confirm('Gateway 未启动，任务创建后将无法自动派发。是否仍然继续？')) return;
+      toast('⚠️ 未找到 claude CLI，任务将无法自动派发！请先安装 Claude Code','err',6000);
+      if(!confirm('未找到 claude CLI，任务创建后将无法自动派发。是否仍然继续？')) return;
     }
   }catch(ex){/* 检测失败不阻塞创建 */}
 

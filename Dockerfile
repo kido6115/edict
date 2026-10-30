@@ -29,9 +29,10 @@ COPY --from=frontend-build /build/dist ./dashboard/dist/
 # 注入演示数据（data目录由demo_data提供）
 COPY docker/demo_data/ ./data/
 
-# 创建 .openclaw 目录并注入骨架配置（Fix #155: sync_agent_config 依赖此文件）
-RUN mkdir -p /app/.openclaw
-COPY docker/demo_data/openclaw.json /app/.openclaw/openclaw.json
+# Agent 注册表与定义（sync_agent_config / 模型切换依赖）
+COPY agents.json ./agents.json
+COPY agents/ ./agents/
+COPY .claude/ ./.claude/
 ENV HOME=/app
 
 # 非 root 用户运行

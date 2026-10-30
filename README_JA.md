@@ -33,6 +33,9 @@
 
 ---
 
+> ⚠️ **このフォークは Claude Code に移植済みです。** 各部署は `.claude/agents/` の subagent です。Claude Code で `/edict <勅命>` を実行するか、ダッシュボードから下旨してください（内部で `claude -p --agent taizi` を実行）。以下の OpenClaw 固有の手順は古くなっています。[CLAUDE.md](CLAUDE.md) を参照し `./install.sh` を実行してください。
+
+
 ## 🎬 デモ
 
 <p align="center">

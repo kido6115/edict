@@ -61,15 +61,12 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 
 # 启动数据刷新循环（后台）
-if command -v openclaw &>/dev/null; then
-  echo -e "${GREEN}▶ 启动数据刷新循环...${NC}"
-  bash scripts/run_loop.sh &
-  LOOP_PID=$!
-else
-  echo -e "${YELLOW}⚠️  未检测到 OpenClaw CLI，跳过数据刷新循环${NC}"
-  echo -e "${YELLOW}   看板将以只读模式运行（使用已有数据）${NC}"
-  LOOP_PID=""
+if ! command -v "${CLAUDE_BIN:-claude}" &>/dev/null; then
+  echo -e "${YELLOW}⚠️  未检测到 claude CLI，看板可浏览但无法自动派发任务${NC}"
 fi
+echo -e "${GREEN}▶ 启动数据刷新循环...${NC}"
+bash scripts/run_loop.sh &
+LOOP_PID=$!
 
 # 启动看板服务器
 echo -e "${GREEN}▶ 启动看板服务器...${NC}"

@@ -1,101 +1,65 @@
-[
-  {
-    "id": "taizi",
-    "name": "taizi",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-taizi",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\taizi\\agent",
-    "subagents": {
-      "allowAgents": ["zhongshu"]
-    }
-  },
-  {
-    "id": "zhongshu",
-    "name": "zhongshu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-zhongshu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\zhongshu\\agent",
-    "subagents": {
+{
+  "_comment": "三省六部 Agent 注册表（Claude Code 版）。修改后运行 python3 scripts/claude_runtime.py build 重新生成 .claude/agents/*.md。model 可填 inherit / sonnet / opus / haiku 或完整模型 ID。",
+  "defaultModel": "inherit",
+  "agents": [
+    {
+      "id": "taizi", "label": "太子", "role": "储君", "emoji": "🤴",
+      "description": "太子·皇上代理。分拣皇上消息：闲聊直接回复，正式旨意则建 JJC 任务并按朝堂规程推动三省六部完成。适合作为主线程 agent（claude --agent taizi）。",
+      "model": "inherit", "tools": [],
+      "allowAgents": ["zhongshu", "menxia", "shangshu", "hubu", "libu", "bingbu", "xingbu", "gongbu", "libu_hr"]
+    },
+    {
+      "id": "zhongshu", "label": "中书省", "role": "中书令", "emoji": "📜",
+      "description": "中书省·规划决策。接收旨意或封驳意见，起草/修订执行方案（谁做、做什么、怎么做、预期产出），不亲自执行。三省流程第一步时使用。",
+      "model": "inherit", "tools": ["Read", "Grep", "Glob", "Bash", "WebSearch", "WebFetch"],
       "allowAgents": ["menxia", "shangshu"]
-    }
-  },
-  {
-    "id": "menxia",
-    "name": "menxia",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-menxia",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\menxia\\agent",
-    "subagents": {
+    },
+    {
+      "id": "menxia", "label": "门下省", "role": "侍中", "emoji": "🔍",
+      "description": "门下省·审议把关。从可行性、完整性、风险、资源四个维度审议中书省方案，给出准奏或封驳。方案起草后必须使用。",
+      "model": "inherit", "tools": ["Read", "Grep", "Glob", "Bash"],
       "allowAgents": ["shangshu", "zhongshu"]
-    }
-  },
-  {
-    "id": "shangshu",
-    "name": "shangshu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-shangshu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\shangshu\\agent",
-    "subagents": {
+    },
+    {
+      "id": "shangshu", "label": "尚书省", "role": "尚书令", "emoji": "📮",
+      "description": "尚书省·执行调度。门下准奏后把方案拆成发给六部的任务令；六部执行完毕后汇总成果并提交审查。",
+      "model": "inherit", "tools": ["Read", "Grep", "Glob", "Bash"],
       "allowAgents": ["zhongshu", "menxia", "hubu", "libu", "bingbu", "xingbu", "gongbu", "libu_hr"]
+    },
+    {
+      "id": "hubu", "label": "户部", "role": "户部尚书", "emoji": "💰",
+      "description": "户部·数据统计与资源管理。执行尚书省派发的数据分析、报表、成本核算类子任务。",
+      "model": "inherit", "tools": [], "allowAgents": ["shangshu"]
+    },
+    {
+      "id": "libu", "label": "礼部", "role": "礼部尚书", "emoji": "📝",
+      "description": "礼部·文档规范与对外沟通。执行尚书省派发的文档撰写、UI 文案、规范制定类子任务。",
+      "model": "inherit", "tools": [], "allowAgents": ["shangshu"]
+    },
+    {
+      "id": "bingbu", "label": "兵部", "role": "兵部尚书", "emoji": "⚔️",
+      "description": "兵部·工程实现与架构设计。执行尚书省派发的写代码、功能开发、架构设计类子任务。",
+      "model": "inherit", "tools": [], "allowAgents": ["shangshu"]
+    },
+    {
+      "id": "xingbu", "label": "刑部", "role": "刑部尚书", "emoji": "⚖️",
+      "description": "刑部·质量保障与合规审计。执行尚书省派发的测试验收、代码审查、合规检查类子任务。",
+      "model": "inherit", "tools": [], "allowAgents": ["shangshu"]
+    },
+    {
+      "id": "gongbu", "label": "工部", "role": "工部尚书", "emoji": "🔧",
+      "description": "工部·基础设施与部署运维。执行尚书省派发的部署、CI/CD、环境配置、性能监控类子任务。",
+      "model": "inherit", "tools": [], "allowAgents": ["shangshu"]
+    },
+    {
+      "id": "libu_hr", "label": "吏部", "role": "吏部尚书", "emoji": "👔",
+      "description": "吏部·人事与 Agent 管理。执行尚书省派发的 Agent 配置、技能培训、团队建设类子任务。",
+      "model": "inherit", "tools": [], "allowAgents": ["shangshu"]
+    },
+    {
+      "id": "zaochao", "label": "钦天监", "role": "朝报官", "emoji": "📰",
+      "description": "钦天监·早朝简报。采集每日新闻并生成早朝简报。",
+      "model": "inherit", "tools": ["Read", "Write", "Bash", "WebSearch", "WebFetch"], "allowAgents": []
     }
-  },
-  {
-    "id": "hubu",
-    "name": "hubu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-hubu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\hubu\\agent",
-    "subagents": {
-      "allowAgents": ["shangshu"]
-    }
-  },
-  {
-    "id": "libu",
-    "name": "libu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-libu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\libu\\agent",
-    "subagents": {
-      "allowAgents": ["shangshu"]
-    }
-  },
-  {
-    "id": "bingbu",
-    "name": "bingbu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-bingbu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\bingbu\\agent",
-    "subagents": {
-      "allowAgents": ["shangshu"]
-    }
-  },
-  {
-    "id": "xingbu",
-    "name": "xingbu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-xingbu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\xingbu\\agent",
-    "subagents": {
-      "allowAgents": ["shangshu"]
-    }
-  },
-  {
-    "id": "gongbu",
-    "name": "gongbu",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-gongbu",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\gongbu\\agent",
-    "subagents": {
-      "allowAgents": ["shangshu"]
-    }
-  },
-  {
-    "id": "libu_hr",
-    "name": "libu_hr",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-libu_hr",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\libu_hr\\agent",
-    "subagents": {
-      "allowAgents": ["shangshu"]
-    }
-  },
-  {
-    "id": "zaochao",
-    "name": "zaochao",
-    "workspace": "C:\\Users\\<YOUR_USER>\\.openclaw\\workspace-zaochao",
-    "agentDir": "C:\\Users\\<YOUR_USER>\\.openclaw\\agents\\zaochao\\agent",
-    "subagents": {
-      "allowAgents": []
-    }
-  }
-]
+  ]
+}

@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/OpenClaw-Required-blue?style=flat-square" alt="OpenClaw">
+  <img src="https://img.shields.io/badge/Claude_Code-Required-D97757?style=flat-square" alt="Claude Code">
   <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Agents-12_Specialized-8B5CF6?style=flat-square" alt="Agents">
   <img src="https://img.shields.io/badge/Dashboard-Real--time-F59E0B?style=flat-square" alt="Dashboard">
@@ -54,7 +54,9 @@
 </p>
 </details>
 
-> 🐳 **没有 OpenClaw？** 跑一行 `docker run -p 7891:7891 cft0808/edict` 即可体验完整看板 Demo（预置模拟数据）。
+> 🤖 **本分支已改为 Claude Code 版**：各省部是 `.claude/agents/` 下的 subagent，用 `/edict <旨意>` 即可在 Claude Code 中下旨（原版基于 OpenClaw）。
+>
+> 🐳 **只想看看？** 跑一行 `docker run -p 7891:7891 cft0808/edict` 即可体验完整看板 Demo（预置模拟数据）。
 
 ---
 
@@ -173,7 +175,7 @@ CrewAI 和 AutoGen 的 Agent 协作模式是 **"做完就交"**——没有人�
 
 **⚙️ 模型配置 · Models**
 - 每个 Agent 独立切换 LLM
-- 应用后自动重启 Gateway（~5秒生效）
+- 写入 `agents.json` 并重新生成 `.claude/agents/<id>.md`，下次调用即生效（支持 inherit / sonnet / opus / haiku / 完整模型 ID）
 
 </td><td>
 
@@ -283,30 +285,38 @@ docker compose up
 ### 完整安装
 
 #### 前置条件
-- [OpenClaw](https://openclaw.ai) 已安装
+- [Claude Code](https://claude.com/claude-code) 已安装并登录（`npm install -g @anthropic-ai/claude-code`）
 - Python 3.10+
-- macOS / Linux
+- macOS / Linux（Windows 可用 WSL）
+- Node.js 18+（可选，仅重新构建前端时需要）
 
 #### 安装
 
 ```bash
-git clone https://github.com/cft0808/edict.git
+git clone <你的 fork 地址> edict
 cd edict
 chmod +x install.sh && ./install.sh
 ```
 
 安装脚本自动完成：
-- ✅ 创建全量 Agent Workspace（含太子/吏部/早朝，兼容历史 main）
-- ✅ 写入各省部 SOUL.md（角色人格 + 工作流规则 + 数据清洗规范）
-- ✅ 注册 Agent 及权限矩阵到 `openclaw.json`
-- ✅ **符号链接统一数据**（各 Workspace 的 data/scripts → 项目目录，确保数据一致）
-- ✅ **设置 Agent 间通信可见性**（`sessions.visibility all`，解决消息不可达问题）
-- ✅ **同步 API Key 到所有 Agent**（自动从已配置的 Agent 复制）
-- ✅ 构建 React 前端（需 Node.js 18+，如未安装则跳过）
+- ✅ 由 `agents.json` + `agents/<id>/SOUL.md` + `agents/GLOBAL.md` 生成 `.claude/agents/*.md`（11 个 subagent）
 - ✅ 初始化数据目录 + 首次数据同步（含官员统计）
-- ✅ 重启 Gateway 使配置生效
+- ✅ 构建 React 前端（需 Node.js 18+，如未安装则使用预构建版本）
 
-> ⚠️ **首次安装**：需先配置 API Key：`openclaw agents add taizi`，然后重新运行 `./install.sh` 同步到所有 Agent。
+> 💡 不需要 Gateway、不需要注册 Agent、不需要同步 API Key——Claude Code 直接读取项目内的 `.claude/agents/` 与 `.claude/skills/`。
+
+#### 在 Claude Code 中下旨（交互式）
+
+```bash
+cd edict
+claude
+> /edict 帮我调研三款开源向量数据库，写一份对比报告
+```
+
+或让太子担任主线程：`claude --agent taizi`。
+
+> ⚙️ Claude Code 的 subagent 不能再调用 subagent，所以由**主会话（太子）**依次调用中书省 → 门下省 → 尚书省 → 六部，
+> 各省部只做本职并把结果交回太子。完整规程见 [`.claude/skills/edict/SKILL.md`](.claude/skills/edict/SKILL.md)。
 
 #### 启动
 
@@ -352,7 +362,7 @@ bash edict.sh stop     # 停止
 ```
                            ┌───────────────────────────────────┐
                            │          👑 皇上（你）              │
-                           │     Feishu · Telegram · Signal     │
+                           │   Claude Code · /edict · 看板下旨  │
                            └─────────────────┬─────────────────┘
                                              │ 下旨
                            ┌─────────────────▼─────────────────┐
@@ -474,7 +484,7 @@ edict/
 │   ├── agentrec_advisor.py     # Agent 模型推荐（功过簿 + 成本优化）
 │   ├── linucb_router.py        # LinUCB 智能路由
 │   ├── refresh_watcher.py      # 数据变更监听
-│   ├── sync_from_openclaw_runtime.py
+│   ├── sync_from_claude_runtime.py
 │   ├── sync_agent_config.py
 │   ├── sync_officials_stats.py
 │   ├── fetch_morning_news.py
@@ -504,7 +514,7 @@ edict/
 
 ### 向 AI 下旨
 
-通过 Feishu / Telegram / Signal 给中书省发消息：
+在项目目录启动 Claude Code，用 `/edict` 下旨（或在看板「下旨」，由看板以 headless 方式调用 `claude -p --agent taizi`）：
 
 ```
 给我设计一个用户注册系统，要求：
@@ -592,7 +602,8 @@ curl http://localhost:7891/api/remote-skills-list
 支持的 Skills：
 - `mmx_cli` — MiniMax 多模态 CLI 技能（文本、图像、视频、语音、音乐、搜索）
 
-如果你有自己的 Skills Hub，可以通过 `OPENCLAW_SKILLS_HUB_BASE` 或 `~/.openclaw/skills-hub-url` 配置自定义源。
+Skill 保存在 `agents/<id>/skills/<name>/SKILL.md`，重新生成 Agent 定义后会自动列入该部的「本部技能」。
+如果你有自己的 Skills Hub，可以通过 `EDICT_SKILLS_HUB_BASE` 或 `data/runtime/skills-hub-url` 配置自定义源。
 
 详见 [🎓 远程 Skills 资源管理指南](docs/remote-skills-guide.md)
 
@@ -662,16 +673,17 @@ curl -s http://127.0.0.1:7891/api/agents-status | python3 -m json.tool
 ```
 确认 `taizi` agent 的 `statusLabel` 是 `alive`。
 
-2. **检查 Gateway 日志**：
+2. **检查会话日志**（每次派发都会落盘）：
 ```bash
-ls /tmp/openclaw/ | tail -5          # 找到最新日志
-grep -i "error\|fail\|unknown" /tmp/openclaw/openclaw-*.log | tail -20
+python3 scripts/claude_runtime.py check                        # claude CLI 是否可用
+ls -t data/runtime/agents/taizi/sessions/*.jsonl | head -3     # 最近的派发会话
+grep -h '"toolResult"' data/runtime/agents/*/sessions/*.jsonl | tail -5
 ```
 
 3. **常见原因**：
-   - Agent ID 不匹配（已在 v1.2 修复：`main` → `taizi`）
-   - LLM provider 超时（增加了自动重试）
-   - 僵尸 Agent 进程（运行 `ps aux | grep openclaw` 检查）
+   - headless 模式下权限不足（命令被拒）：调整 `EDICT_CLAUDE_PERMISSION_MODE` 或在 `.claude/settings.json` 放行所需命令
+   - 整条流程超过派发超时：调大 `EDICT_DISPATCH_TIMEOUT`（默认 1800 秒）
+   - 僵尸进程（运行 `ps aux | grep "claude.*--agent"` 检查）
 
 4. **强制重试**：
 ```bash
@@ -828,7 +840,7 @@ python3 scripts/skill_manager.py import-official-hub --agents menxia
 
 ## 📄 License
 
-[MIT](LICENSE) · 由 [OpenClaw](https://openclaw.ai) 社区构建
+[MIT](LICENSE) · 原版由 [OpenClaw](https://openclaw.ai) 社区构建，本分支移植到 Claude Code
 
 ---
 

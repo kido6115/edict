@@ -2,14 +2,15 @@
 import json
 import pathlib
 import sys
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'dashboard'))
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 
-def test_dispatch_records_missing_openclaw_cli(monkeypatch, tmp_path):
-    """Missing OpenClaw CLI should become an actionable dispatch status."""
+def test_dispatch_records_missing_claude_cli(monkeypatch, tmp_path):
+    """Missing claude CLI should become an actionable dispatch status."""
     import server as srv
 
     data_dir = tmp_path / 'data'
@@ -28,8 +29,8 @@ def test_dispatch_records_missing_openclaw_cli(monkeypatch, tmp_path):
 
     monkeypatch.setattr(srv, 'DATA', data_dir)
     monkeypatch.setattr(srv, '_ACTIVE_TASK_DATA_DIR', data_dir)
-    monkeypatch.setattr(srv, '_check_gateway_alive', lambda: True)
-    monkeypatch.setattr(srv, '_resolve_openclaw_bin', lambda: None)
+    monkeypatch.setattr(srv, '_check_gateway_alive', lambda: False)
+    monkeypatch.setattr(time, 'sleep', lambda s: None)
     monkeypatch.setattr(
         srv,
         'save_tasks',
@@ -53,7 +54,6 @@ def test_dispatch_records_missing_openclaw_cli(monkeypatch, tmp_path):
 
     updated = json.loads(tasks_path.read_text(encoding='utf-8'))[0]
     sched = updated['_scheduler']
-    assert sched['lastDispatchStatus'] == 'openclaw-missing'
-    assert 'OpenClaw CLI 未找到' in sched['lastDispatchError']
-    assert '[WinError 2]' not in sched['lastDispatchError']
-    assert any('OpenClaw CLI 未找到' in item['remark'] for item in updated['flow_log'])
+    assert sched['lastDispatchStatus'] == 'claude-missing'
+    assert 'claude CLI' in sched['lastDispatchError']
+    assert any('claude CLI 未找到' in item['remark'] for item in updated['flow_log'])

@@ -2,26 +2,20 @@
 """同步各官员统计数据 → data/officials_stats.json"""
 import json, pathlib, datetime, logging
 from file_lock import atomic_json_write
-from utils import get_openclaw_home
+import claude_runtime
 
 log = logging.getLogger('officials')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(message)s', datefmt='%H:%M:%S')
 
 BASE = pathlib.Path(__file__).resolve().parent.parent
 DATA = BASE / 'data'
-OPENCLAW_HOME = get_openclaw_home()
-AGENTS_ROOT = OPENCLAW_HOME / 'agents'
-OPENCLAW_CFG = OPENCLAW_HOME / 'openclaw.json'
+AGENTS_ROOT = claude_runtime.runtime_home() / 'agents'
 
-# Anthropic 定价（每1M token，美元）
+# 估算定价（每1M token，美元）。Claude Code 会话自带 costUsd 时优先使用实际值。
 MODEL_PRICING = {
-    'anthropic/claude-sonnet-4-6':  {'in':3.0, 'out':15.0, 'cr':0.30, 'cw':3.75},
-    'anthropic/claude-opus-4-5':    {'in':15.0,'out':75.0, 'cr':1.50, 'cw':18.75},
-    'anthropic/claude-haiku-3-5':   {'in':0.8, 'out':4.0,  'cr':0.08, 'cw':1.0},
-    'openai/gpt-4o':                {'in':2.5, 'out':10.0, 'cr':1.25, 'cw':0},
-    'openai/gpt-4o-mini':           {'in':0.15,'out':0.6,  'cr':0.075,'cw':0},
-    'google/gemini-2.0-flash':      {'in':0.075,'out':0.3, 'cr':0,    'cw':0},
-    'google/gemini-2.5-pro':        {'in':1.25,'out':10.0, 'cr':0,    'cw':0},
+    'opus':   {'in':5.0, 'out':25.0, 'cr':0.50, 'cw':6.25},
+    'sonnet': {'in':3.0, 'out':15.0, 'cr':0.30, 'cw':3.75},
+    'haiku':  {'in':1.0, 'out':5.0,  'cr':0.10, 'cw':1.25},
 }
 
 OFFICIALS = [
@@ -45,46 +39,18 @@ def rj(p, d):
         return d
 
 
-# Pre-load openclaw config once (avoid re-reading per agent)
-_OPENCLAW_CACHE = None
-
-def _load_openclaw_cfg():
-    global _OPENCLAW_CACHE
-    if _OPENCLAW_CACHE is None:
-        _OPENCLAW_CACHE = rj(OPENCLAW_CFG, {})
-    return _OPENCLAW_CACHE
-
-
-def normalize_model(model_value, fallback='anthropic/claude-sonnet-4-6'):
-    if isinstance(model_value, str) and model_value:
-        return model_value
-    if isinstance(model_value, dict):
-        return model_value.get('primary') or model_value.get('id') or fallback
-    return fallback
-
 def get_model(agent_id):
-    cfg = _load_openclaw_cfg()
-    default = normalize_model(cfg.get('agents',{}).get('defaults',{}).get('model',{}), 'anthropic/claude-sonnet-4-6')
-    for a in cfg.get('agents',{}).get('list',[]):
-        if a.get('id') == agent_id:
-            return normalize_model(a.get('model', default), default)
-    # 兼容历史：太子曾使用 main 作为运行时 id
-    if agent_id == 'taizi':
-        for a in cfg.get('agents',{}).get('list',[]):
-            if a.get('id') == 'main':
-                return normalize_model(a.get('model', default), default)
-    return default
+    return claude_runtime.get_agent_model(agent_id)
 
 def scan_agent(agent_id):
     """从 sessions.json 读取 token 统计（累计所有 session）"""
     sj = AGENTS_ROOT / agent_id / 'sessions' / 'sessions.json'
-    if not sj.exists() and agent_id == 'taizi':
-        sj = AGENTS_ROOT / 'main' / 'sessions' / 'sessions.json'
     if not sj.exists():
-        return {'tokens_in':0,'tokens_out':0,'cache_read':0,'cache_write':0,'sessions':0,'last_active':None,'messages':0}
+        return {'tokens_in':0,'tokens_out':0,'cache_read':0,'cache_write':0,'cost_usd':0.0,'sessions':0,'last_active':None,'messages':0}
     
     data = rj(sj, {})
     tin = tout = cr = cw = 0
+    cost = 0.0
     last_ts = None
     
     for sid, v in data.items():
@@ -92,6 +58,7 @@ def scan_agent(agent_id):
         tout += v.get('outputTokens', 0) or 0
         cr  += v.get('cacheRead', 0) or 0
         cw  += v.get('cacheWrite', 0) or 0
+        cost += v.get('costUsd', 0) or 0
         ts = v.get('updatedAt')
         if ts:
             try:
@@ -123,13 +90,18 @@ def scan_agent(agent_id):
     return {
         'tokens_in': tin, 'tokens_out': tout,
         'cache_read': cr, 'cache_write': cw,
+        'cost_usd': cost,
         'sessions': len(data),
         'last_active': last_ts.strftime('%Y-%m-%d %H:%M') if last_ts else None,
         'messages': msg_count,
     }
 
 def calc_cost(s, model):
-    p = MODEL_PRICING.get(model, MODEL_PRICING['anthropic/claude-sonnet-4-6'])
+    if s.get('cost_usd'):
+        return round(s['cost_usd'], 4)
+    m = str(model).lower()
+    family = next((k for k in MODEL_PRICING if k in m), 'sonnet')
+    p = MODEL_PRICING[family]
     usd = (s['tokens_in']/1e6*p['in'] + s['tokens_out']/1e6*p['out']
          + s['cache_read']/1e6*p['cr'] + s['cache_write']/1e6*p['cw'])
     return round(usd, 4)

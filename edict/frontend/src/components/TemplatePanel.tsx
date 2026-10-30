@@ -48,12 +48,12 @@ export default function TemplatePanel() {
       return;
     }
 
-    // Pre-check gateway
+    // Pre-check claude CLI
     try {
       const st = await api.agentsStatus();
       if (st.ok && st.gateway && !st.gateway.alive) {
-        toast('⚠️ Gateway 未启动，任务将无法派发！', 'err');
-        if (!confirm('Gateway 未启动，继续？')) return;
+        toast('⚠️ 未找到 claude CLI，任务将无法自动派发！', 'err');
+        if (!confirm('未找到 claude CLI，继续？')) return;
       }
     } catch {
       /* ignore */

@@ -35,7 +35,7 @@ python3 scripts/kanban_update.py flow JJC-xxx "钦天监" "钦天监" "▶️ �
 python3 scripts/kanban_update.py flow JJC-xxx "钦天监" "尚书省" "✅ 完成：[产出摘要]"
 ```
 
-然后用 `sessions_send` 把成果发给尚书省。
+然后直接返回执行结果（产出、证据/文件路径、遗留问题）。
 
 ### 🚫 阻塞时（立即上报）
 ```bash

@@ -11,15 +11,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 OpenClaw CLI（官方 local-prefix 安装方式，避免依赖宿主机 Node）
-RUN curl -fsSL --proto '=https' --tlsv1.2 https://openclaw.ai/install-cli.sh \
-    | bash -s -- --prefix /opt/openclaw
+# 安装 Node.js 与 Claude Code CLI（dispatcher 以 headless 方式调用 claude -p --agent <id>）
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g @anthropic-ai/claude-code \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/opt/openclaw/bin:${PATH}" \
-    HOME=/app \
-    OPENCLAW_HOME=/app \
-    OPENCLAW_STATE_DIR=/app/.openclaw \
-    OPENCLAW_CONFIG_PATH=/app/.openclaw/openclaw.json
+ENV HOME=/app \
+    CLAUDE_PROJECT_DIR=/app
 
 # 安装 Python 依赖
 COPY edict/backend/requirements.txt /tmp/requirements.txt
@@ -32,17 +31,9 @@ COPY edict/backend/ /app/
 COPY edict/alembic.ini /app/alembic.ini
 COPY edict/migration/ /app/migration/
 
-# 注入 OpenClaw 的最小状态目录和 agent workspace 骨架
-COPY docker/demo_data/openclaw.json /app/.openclaw/openclaw.json
-COPY agents/ /tmp/agents/
-RUN set -eu; \
-    for soul in /tmp/agents/*/SOUL.md; do \
-        agent="$(basename "$(dirname "$soul")")"; \
-        workspace="/app/.openclaw/workspace-${agent}"; \
-        mkdir -p "${workspace}/skills"; \
-        cp "$soul" "${workspace}/SOUL.md"; \
-    done; \
-    rm -rf /tmp/agents
+# Claude Code Agent 定义（由 scripts/claude_runtime.py build 生成）与 Agent 源文件
+COPY .claude/ /app/.claude/
+COPY agents/ /app/agents/
 
 EXPOSE 8000
 

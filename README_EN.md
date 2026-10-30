@@ -33,6 +33,9 @@
 
 ---
 
+> ⚠️ **This fork has been ported to Claude Code.** Each department is a subagent in `.claude/agents/`; issue edicts with `/edict <task>` inside Claude Code, or from the dashboard (which runs `claude -p --agent taizi` headlessly). OpenClaw-specific steps below are outdated — see [CLAUDE.md](CLAUDE.md) and run `./install.sh`.
+
+
 ## 🎬 Demo
 
 <p align="center">

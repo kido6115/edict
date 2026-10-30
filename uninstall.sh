@@ -1,12 +1,10 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
-# 三省六部 · OpenClaw Multi-Agent System 一键卸载脚本
+# 三省六部 · Claude Code Multi-Agent System 一键卸载脚本
 # ══════════════════════════════════════════════════════════════
 set -e
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OC_HOME="$HOME/.openclaw"
-OC_CFG="$OC_HOME/openclaw.json"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
@@ -54,66 +52,18 @@ stop_services() {
   fi
 }
 
-# ── Step 2: 清理 OpenClaw 注册配置 ──────────────────────────────
-unregister_agents() {
-  info "从 OpenClaw 移除三省六部 Agents 注册信息..."
-
-  if [ ! -f "$OC_CFG" ]; then
-    warn "未找到 openclaw.json，跳过配置清理"
-    return
-  fi
-
-  cp "$OC_CFG" "$OC_CFG.bak.pre-uninstall-$(date +%Y%m%d-%H%M%S)"
-  log "已备份当前配置"
-
-  python3 << 'PYEOF'
-import json, pathlib
-
-cfg_path = pathlib.Path.home() / '.openclaw' / 'openclaw.json'
-if not cfg_path.exists():
-    print("  openclaw.json 不存在。")
-    exit(0)
-
-try:
-    cfg = json.loads(cfg_path.read_text(encoding='utf-8'))
-except Exception as e:
-    print(f"  解析 openclaw.json 失败: {e}")
-    exit(1)
-
-AGENTS_TO_REMOVE = {
-    "taizi", "zhongshu", "menxia", "shangshu",
-    "hubu", "libu", "bingbu", "xingbu", "gongbu",
-    "libu_hr", "zaochao"
-}
-
-agents_list = cfg.get('agents', {}).get('list', [])
-new_list = [a for a in agents_list if a.get('id') not in AGENTS_TO_REMOVE]
-removed_count = len(agents_list) - len(new_list)
-
-if 'agents' in cfg:
-    cfg['agents']['list'] = new_list
-    cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(f"  成功移除了 {removed_count} 个 Agent 的注册信息")
-PYEOF
-
-  log "注册信息清理完成"
-}
-
-# ── Step 3: 清除 Workspace 目录 ─────────────────────────────────
-remove_workspaces() {
-  info "清除 Agent Workspace 目录..."
-
-  AGENTS=(taizi zhongshu menxia shangshu hubu libu bingbu xingbu gongbu libu_hr zaochao)
+# ── Step 2: 清除生成的 Claude Code Agent 定义 ───────────────────
+remove_agents() {
+  info "清除 .claude/agents 下由安装脚本生成的 Agent 定义..."
   removed=0
-  for agent in "${AGENTS[@]}"; do
-    ws="$OC_HOME/workspace-$agent"
-    if [ -d "$ws" ]; then
-      rm -rf "$ws"
+  for f in "$REPO_DIR"/.claude/agents/*.md; do
+    [ -f "$f" ] || continue
+    if grep -q "scripts/claude_runtime.py build 生成" "$f"; then
+      rm -f "$f"
       removed=$((removed+1))
     fi
   done
-
-  log "成功清理了 $removed 个 Workspace 目录"
+  log "已移除 $removed 个 Agent 定义（可随时运行 python3 scripts/claude_runtime.py build 重新生成）"
 }
 
 # ── Step 4: 清除本地数据缓存 ────────────────────────────────────
@@ -135,28 +85,12 @@ remove_data() {
   fi
 }
 
-# ── Step 5: 重启 Gateway ────────────────────────────────────────
-restart_gateway() {
-  info "重启 OpenClaw Gateway 以应用配置..."
-  if command -v openclaw &>/dev/null; then
-    if openclaw gateway restart 2>/dev/null; then
-      log "Gateway 重启成功"
-    else
-      warn "Gateway 重启失败，请手动重启：openclaw gateway restart"
-    fi
-  else
-    warn "未找到 openclaw 命令行工具，跳过重启 Gateway"
-  fi
-}
-
 # ── Main ────────────────────────────────────────────────────
 banner
 check_env
 stop_services
-unregister_agents
-remove_workspaces
+remove_agents
 remove_data
-restart_gateway
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"

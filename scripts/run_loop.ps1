@@ -14,8 +14,8 @@ param(
 
 # ── 基础配置 ──
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (-not $env:OPENCLAW_HOME) {
-    $env:OPENCLAW_HOME = Split-Path -Parent $ScriptDir
+if (-not $env:EDICT_HOME) {
+    $env:EDICT_HOME = Split-Path -Parent $ScriptDir
 }
 
 $Log = "$env:TEMP\sansheng_liubu_refresh.log"
@@ -95,7 +95,7 @@ $ScanCounter = 0
 while ($true) {
     Rotate-Log
 
-    Safe-Run "$ScriptDir\sync_from_openclaw_runtime.py"
+    Safe-Run "$ScriptDir\sync_from_claude_runtime.py"
     Safe-Run "$ScriptDir\sync_agent_config.py"
     Safe-Run "$ScriptDir\apply_model_changes.py"
     Safe-Run "$ScriptDir\sync_officials_stats.py"

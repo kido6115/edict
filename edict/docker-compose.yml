@@ -56,6 +56,7 @@ services:
         condition: service_healthy
     volumes:
       - ../agents:/app/agents:ro
+      - ../.claude:/app/.claude:ro
       - ../data:/app/data
     command: >
       sh -c "
@@ -88,7 +89,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://edict:edict_dev_2024@postgres:5432/edict
       REDIS_URL: redis://redis:6379/0
-      OPENCLAW_PROJECT_DIR: /app
+      CLAUDE_PROJECT_DIR: /app
+      # Claude Code 认证：在宿主机 export ANTHROPIC_API_KEY=... 后启动
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

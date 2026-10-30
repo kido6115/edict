@@ -26,7 +26,7 @@ python3 scripts/kanban_update.py flow JJC-xxx "XX部" "XX部" "▶️ 开始执�
 python3 scripts/kanban_update.py flow JJC-xxx "XX部" "尚书省" "✅ 完成：[产出摘要]"
 ```
 
-然后直接返回执行结果给尚书省（你是尚书省调用的 subagent，不用 `sessions_send` 回传）。
+然后直接返回执行结果（你是太子按尚书省任务令调用的 subagent，结果由太子转交尚书省汇总）。
 
 ## 🚫 阻塞时（立即上报）
 

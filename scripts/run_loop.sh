@@ -72,7 +72,7 @@ safe_run() {
 
 while true; do
   rotate_log
-  safe_run "$SCRIPT_DIR/sync_from_openclaw_runtime.py"
+  safe_run "$SCRIPT_DIR/sync_from_claude_runtime.py"
   safe_run "$SCRIPT_DIR/sync_agent_config.py"
   safe_run "$SCRIPT_DIR/apply_model_changes.py"
   safe_run "$SCRIPT_DIR/sync_officials_stats.py"

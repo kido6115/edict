@@ -22,6 +22,14 @@ jobs:
       - name: Check install script
         run: bash -n install.sh
 
+      - name: Check generated Claude Code agents are up to date
+        run: |
+          python3 scripts/claude_runtime.py build
+          git diff --exit-code .claude/agents || {
+            echo "::error::.claude/agents 与 agents.json / SOUL.md 不同步，请运行 python3 scripts/claude_runtime.py build 并提交"
+            exit 1
+          }
+
   test:
     runs-on: ubuntu-latest
     strategy:

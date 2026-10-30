@@ -1,5 +1,8 @@
 # 远程 Skills 快速入门
 
+> ⚠️ **Claude Code 版说明：** 技能现保存在 `agents/<id>/skills/<name>/SKILL.md`（不再是 `~/.openclaw/workspace-*`），自定义 Hub 使用 `EDICT_SKILLS_HUB_BASE`。
+
+
 ## 5 分钟体验
 
 ### 1. 启动服务器

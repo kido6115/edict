@@ -16,12 +16,12 @@ def read_json(path, default=None):
         return default if default is not None else {}
 
 
-def get_openclaw_home() -> pathlib.Path:
-    """Return OpenClaw home directory, respecting OPENCLAW_HOME env var."""
-    env = os.environ.get('OPENCLAW_HOME')
+def get_runtime_home() -> pathlib.Path:
+    """Claude Code 运行时数据目录（会话日志等），可用 EDICT_RUNTIME_HOME 覆盖。"""
+    env = os.environ.get('EDICT_RUNTIME_HOME')
     if env:
         return pathlib.Path(env).expanduser()
-    return pathlib.Path.home() / '.openclaw'
+    return pathlib.Path(__file__).resolve().parent.parent / 'data' / 'runtime'
 
 
 def now_iso():

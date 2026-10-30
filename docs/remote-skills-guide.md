@@ -1,5 +1,8 @@
 # 远程 Skills 资源管理指南
 
+> ⚠️ **Claude Code 版说明：** 技能现保存在 `agents/<id>/skills/<name>/SKILL.md`（不再是 `~/.openclaw/workspace-*`），自定义 Hub 使用 `EDICT_SKILLS_HUB_BASE`。
+
+
 ## 概述
 
 三省六部现已支持从网上连接和增补 skills 资源，无需手动复制文件。支持从以下来源获取：

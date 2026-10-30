@@ -26,4 +26,6 @@ Thumbs.db
 docs/
 *.md
 !README.md
+!agents/**/*.md
+!.claude/**/*.md
 LICENSE

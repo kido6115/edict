@@ -1,4 +1,4 @@
-"""Dispatch Worker — 消费 task.dispatch 事件，执行 OpenClaw agent 调用。
+"""Dispatch Worker — 消费 task.dispatch 事件，以 headless 方式调用 Claude Code agent。
 
 核心解决旧架构痛点：
 - 旧: daemon 线程 + subprocess.run → kill -9 丢失一切
@@ -7,7 +7,7 @@
 流程:
 1. 从 task.dispatch stream 消费事件
 2. 组装富上下文 (_build_agent_context)
-3. 调用 OpenClaw CLI: `openclaw agent --agent xxx -m "..."`
+3. 调用 Claude Code CLI: `claude -p "..." --agent xxx --output-format json`
 4. 解析 agent 输出（kanban_update.py 调用结果）
 5. ACK 事件
 """
@@ -67,8 +67,8 @@ _GROUP_MAP = {
 def _resolve_agents_dir() -> pathlib.Path:
     """定位 agents/ 目录。"""
     settings = get_settings()
-    if settings.openclaw_project_dir:
-        return pathlib.Path(settings.openclaw_project_dir) / "agents"
+    if settings.claude_project_dir:
+        return pathlib.Path(settings.claude_project_dir) / "agents"
     # 默认: 相对于 edict/backend 上溯到项目根
     return pathlib.Path(__file__).resolve().parents[4] / "agents"
 
@@ -178,8 +178,8 @@ def _build_reminder(agent_id: str, payload: dict) -> str:
 def _resolve_project_root() -> pathlib.Path:
     """定位项目根目录。"""
     settings = get_settings()
-    if settings.openclaw_project_dir:
-        return pathlib.Path(settings.openclaw_project_dir)
+    if settings.claude_project_dir:
+        return pathlib.Path(settings.claude_project_dir)
     return pathlib.Path(__file__).resolve().parents[4]
 
 
@@ -426,7 +426,7 @@ class DispatchWorker:
 
             try:
                 start_time = time.monotonic()
-                result = await self._call_openclaw(agent, enriched_message, task_id, trace_id, payload)
+                result = await self._call_claude(agent, enriched_message, task_id, trace_id, payload)
                 elapsed = time.monotonic() - start_time
 
                 # 记录执行时间（仅用于监控和告警）
@@ -481,7 +481,7 @@ class DispatchWorker:
                 if "TIMEOUT" in stderr:
                     raise DispatchError("Agent timeout", retryable=True)
                 elif "command not found" in stderr:
-                    raise DispatchError("openclaw binary missing", retryable=False)
+                    raise DispatchError("claude binary missing", retryable=False)
                 elif result["returncode"] in (1, 2):
                     raise DispatchError(
                         f"Agent failed: rc={result['returncode']}", retryable=True
@@ -539,7 +539,7 @@ class DispatchWorker:
             finally:
                 self._inflight.discard(task_id)
 
-    async def _call_openclaw(
+    async def _call_claude(
         self,
         agent: str,
         message: str,
@@ -547,16 +547,19 @@ class DispatchWorker:
         trace_id: str,
         payload: dict | None = None,
     ) -> dict:
-        """异步调用 OpenClaw CLI — 在线程池中执行，带富上下文注入。"""
+        """异步调用 Claude Code CLI — 在线程池中执行，带富上下文注入。"""
         settings = get_settings()
         cmd = [
-            settings.openclaw_bin,
-            "agent",
+            settings.claude_bin,
+            "-p", message,
             "--agent", agent,
-            "-m", message,
+            "--output-format", "json",
         ]
+        if settings.claude_permission_mode:
+            cmd += ["--permission-mode", settings.claude_permission_mode]
 
         env = os.environ.copy()
+        env["EDICT_AGENT_ID"] = agent
         env["EDICT_TASK_ID"] = task_id
         env["EDICT_TRACE_ID"] = trace_id
         env["EDICT_API_URL"] = f"http://localhost:{settings.port}"
@@ -605,19 +608,29 @@ class DispatchWorker:
                     cmd,
                     capture_output=True,
                     text=True,
-                    timeout=300,
+                    timeout=settings.dispatch_timeout_sec,
                     env=env,
-                    cwd=settings.openclaw_project_dir or None,
+                    cwd=str(_resolve_project_root()),
+                    stdin=subprocess.DEVNULL,
                 )
+                stdout = proc.stdout or ""
+                returncode = proc.returncode
+                try:
+                    data = json.loads(stdout)
+                    stdout = data.get("result") or ""
+                    if data.get("is_error") and returncode == 0:
+                        returncode = 1
+                except (json.JSONDecodeError, AttributeError):
+                    pass
                 return {
-                    "returncode": proc.returncode,
-                    "stdout": proc.stdout[-5000:] if proc.stdout else "",
+                    "returncode": returncode,
+                    "stdout": stdout[-5000:],
                     "stderr": proc.stderr[-2000:] if proc.stderr else "",
                 }
             except subprocess.TimeoutExpired:
-                return {"returncode": -1, "stdout": "", "stderr": "TIMEOUT after 300s"}
+                return {"returncode": -1, "stdout": "", "stderr": f"TIMEOUT after {settings.dispatch_timeout_sec}s"}
             except FileNotFoundError:
-                return {"returncode": -1, "stdout": "", "stderr": "openclaw command not found"}
+                return {"returncode": -1, "stdout": "", "stderr": "claude command not found"}
             finally:
                 # 清理临时上下文文件
                 if context_file:

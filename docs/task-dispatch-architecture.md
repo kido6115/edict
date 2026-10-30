@@ -1,5 +1,8 @@
 # 三省六部任务分发流转体系 · 业务与技术架构
 
+> ⚠️ **Claude Code 版说明：** 派发不再经由 OpenClaw Gateway。看板以 `claude -p --agent taizi` 启动主线程，由太子按 `.claude/skills/edict/SKILL.md` 依次调用各省部 subagent（subagent 不能嵌套调用）。
+
+
 > 本文档详细阐述「三省六部」项目如何从**业务制度设计**到**代码实现细节**，完整处理复杂多Agent协作的任务分发与流转。这是一个**制度化的AI多Agent框架**，而非传统的自由讨论式协作系统。
 
 **文档概览图**

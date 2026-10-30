@@ -1,5 +1,8 @@
 # 🚀 快速上手指南
 
+> ⚠️ **本分支已移植到 Claude Code。** 本文部分内容描述的是原 OpenClaw 版（Gateway、`openclaw.json`、workspace 等）。安装与使用请以 [README](../README.md) 的「完整安装」与 [CLAUDE.md](../CLAUDE.md) 为准。
+
+
 > 从零开始，5 分钟搭建你的三省六部 AI 协同系统
 
 ---

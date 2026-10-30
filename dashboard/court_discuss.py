@@ -278,133 +278,41 @@ def get_fate_event() -> str:
 
 # ── LLM 集成 ──
 
-_PREFERRED_MODELS = ['gpt-4o-mini', 'claude-haiku', 'gpt-5-mini', 'gemini-3-flash', 'gemini-flash']
-
-# GitHub Copilot 模型列表 (通过 Copilot Chat API 可用)
-_COPILOT_MODELS = [
-    'gpt-4o', 'gpt-4o-mini', 'claude-sonnet-4', 'claude-haiku-3.5',
-    'gemini-2.0-flash', 'o3-mini',
-]
-_COPILOT_PREFERRED = ['gpt-4o-mini', 'claude-haiku', 'gemini-flash', 'gpt-4o']
-
-
-def _pick_chat_model(models: list[dict]) -> str | None:
-    """从 provider 的模型列表中选一个适合聊天的轻量模型。"""
-    ids = [m['id'] for m in models if isinstance(m, dict) and 'id' in m]
-    for pref in _PREFERRED_MODELS:
-        for mid in ids:
-            if pref in mid:
-                return mid
-    return ids[0] if ids else None
-
-
-def _read_copilot_token() -> str | None:
-    """读取 openclaw 管理的 GitHub Copilot token。"""
-    token_path = os.path.expanduser('~/.openclaw/credentials/github-copilot.token.json')
-    if not os.path.exists(token_path):
-        return None
-    try:
-        with open(token_path) as f:
-            cred = json.load(f)
-        token = cred.get('token', '')
-        expires = cred.get('expiresAt', 0)
-        # 检查 token 是否过期（毫秒时间戳）
-        import time
-        if expires and time.time() * 1000 > expires:
-            logger.warning('Copilot token expired')
-            return None
-        return token if token else None
-    except Exception as e:
-        logger.warning('Failed to read copilot token: %s', e)
-        return None
-
-
 def _get_llm_config() -> dict | None:
-    """从 openclaw 配置读取 LLM 设置，支持环境变量覆盖。
+    """朝堂议政的 LLM 设置。
 
-    优先级: 环境变量 > github-copilot token > 本地 copilot-proxy > anthropic > 其他 provider
+    优先级:
+      1. EDICT_LLM_API_KEY（+ EDICT_LLM_BASE_URL / EDICT_LLM_MODEL）→ 任意 OpenAI 兼容接口
+      2. ANTHROPIC_API_KEY → Anthropic Messages API（模型可用 EDICT_LLM_MODEL 覆盖）
+      3. 本机 claude CLI（沿用 Claude Code 的登录状态，无需额外密钥）
     """
-    # 1. 环境变量覆盖（保留向后兼容）
-    env_key = os.environ.get('OPENCLAW_LLM_API_KEY', '')
+    env_key = os.environ.get('EDICT_LLM_API_KEY', '')
     if env_key:
         return {
             'api_key': env_key,
-            'base_url': os.environ.get('OPENCLAW_LLM_BASE_URL', 'https://api.openai.com/v1'),
-            'model': os.environ.get('OPENCLAW_LLM_MODEL', 'gpt-4o-mini'),
+            'base_url': os.environ.get('EDICT_LLM_BASE_URL', 'https://api.openai.com/v1'),
+            'model': os.environ.get('EDICT_LLM_MODEL', 'gpt-4o-mini'),
             'api_type': 'openai',
         }
 
-    # 2. GitHub Copilot token（最优先 — 免费、稳定、无需额外配置）
-    copilot_token = _read_copilot_token()
-    if copilot_token:
-        # 选一个 copilot 支持的模型
-        model = 'gpt-4o'
-        logger.info('Court discuss using github-copilot token, model=%s', model)
+    anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if anthropic_key:
         return {
-            'api_key': copilot_token,
-            'base_url': 'https://api.githubcopilot.com',
-            'model': model,
-            'api_type': 'github-copilot',
+            'api_key': anthropic_key,
+            'base_url': os.environ.get('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
+            'model': os.environ.get('EDICT_LLM_MODEL', 'claude-haiku-5-5'),
+            'api_type': 'anthropic-messages',
         }
 
-    # 3. 从 ~/.openclaw/openclaw.json 读取其他 provider 配置
-    openclaw_cfg = os.path.expanduser('~/.openclaw/openclaw.json')
-    if not os.path.exists(openclaw_cfg):
-        return None
-
-    try:
-        with open(openclaw_cfg) as f:
-            cfg = json.load(f)
-
-        providers = cfg.get('models', {}).get('providers', {})
-
-        # 按优先级排序：copilot-proxy > anthropic > 其他
-        ordered = []
-        for preferred in ['copilot-proxy', 'anthropic']:
-            if preferred in providers:
-                ordered.append(preferred)
-        ordered.extend(k for k in providers if k not in ordered)
-
-        for name in ordered:
-            prov = providers.get(name)
-            if not prov:
-                continue
-            api_type = prov.get('api', '')
-            base_url = prov.get('baseUrl', '')
-            api_key = prov.get('apiKey', '')
-            if not base_url:
-                continue
-
-            # 跳过无 key 且非本地的 provider
-            if not api_key or api_key == 'n/a':
-                if 'localhost' not in base_url and '127.0.0.1' not in base_url:
-                    continue
-
-            model_id = _pick_chat_model(prov.get('models', []))
-            if not model_id:
-                continue
-
-            # 本地代理先探测是否可用
-            if 'localhost' in base_url or '127.0.0.1' in base_url:
-                try:
-                    import urllib.request
-                    probe = urllib.request.Request(base_url.rstrip('/') + '/models', method='GET')
-                    urllib.request.urlopen(probe, timeout=2)
-                except Exception:
-                    logger.info('Skipping provider=%s (not reachable)', name)
-                    continue
-
-            logger.info('Court discuss using openclaw provider=%s model=%s api=%s', name, model_id, api_type)
-            send_auth = prov.get('authHeader', True) is not False and api_key not in ('', 'n/a')
-            return {
-                'api_key': api_key if send_auth else '',
-                'base_url': base_url,
-                'model': model_id,
-                'api_type': api_type,
-            }
-    except Exception as e:
-        logger.warning('Failed to read openclaw config: %s', e)
-
+    import shutil
+    claude_bin = os.environ.get('CLAUDE_BIN', '').strip() or shutil.which('claude')
+    if claude_bin:
+        return {
+            'api_key': '',
+            'base_url': claude_bin,
+            'model': os.environ.get('EDICT_LLM_MODEL', 'haiku'),
+            'api_type': 'claude-cli',
+        }
     return None
 
 
@@ -428,7 +336,7 @@ def _try_repair_truncated_discuss(content: str) -> dict | None:
 
 
 def _llm_complete(system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str | None:
-    """调用 LLM API（自动适配 GitHub Copilot / OpenAI / Anthropic 协议）。"""
+    """调用 LLM（自动适配 claude CLI / Anthropic / OpenAI 兼容协议）。"""
     config = _get_llm_config()
     if not config:
         return None
@@ -437,6 +345,23 @@ def _llm_complete(system_prompt: str, user_prompt: str, max_tokens: int = 1024) 
     import urllib.error
 
     api_type = config.get('api_type', 'openai-completions')
+
+    if api_type == 'claude-cli':
+        import subprocess
+        cmd = [config['base_url'], '-p', user_prompt, '--system-prompt', system_prompt,
+               '--model', config['model'], '--tools', '', '--output-format', 'json',
+               '--no-session-persistence']
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180,
+                                  stdin=subprocess.DEVNULL, encoding='utf-8', errors='replace')
+            data = json.loads(proc.stdout or '{}')
+            if proc.returncode != 0 or data.get('is_error'):
+                logger.warning('claude CLI call failed: %s', (proc.stderr or proc.stdout)[:300])
+                return None
+            return data.get('result') or None
+        except Exception as e:
+            logger.warning('claude CLI call failed: %s', e)
+            return None
 
     if api_type == 'anthropic-messages':
         # Anthropic Messages API
@@ -462,20 +387,11 @@ def _llm_complete(system_prompt: str, user_prompt: str, max_tokens: int = 1024) 
             logger.warning('Anthropic LLM call failed: %s', e)
             return None
     else:
-        # OpenAI-compatible API (也适用于 github-copilot)
-        if api_type == 'github-copilot':
-            url = config['base_url'].rstrip('/') + '/chat/completions'
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': f"Bearer {config['api_key']}",
-                'Editor-Version': 'vscode/1.96.0',
-                'Copilot-Integration-Id': 'vscode-chat',
-            }
-        else:
-            url = config['base_url'].rstrip('/') + '/chat/completions'
-            headers = {'Content-Type': 'application/json'}
-            if config.get('api_key'):
-                headers['Authorization'] = f"Bearer {config['api_key']}"
+        # OpenAI 兼容接口
+        url = config['base_url'].rstrip('/') + '/chat/completions'
+        headers = {'Content-Type': 'application/json'}
+        if config.get('api_key'):
+            headers['Authorization'] = f"Bearer {config['api_key']}"
         payload = json.dumps({
             'model': config['model'],
             'messages': [

@@ -6,7 +6,7 @@ import datetime
 import traceback
 import logging
 from file_lock import atomic_json_write, atomic_json_read
-from utils import get_openclaw_home
+from utils import get_runtime_home
 
 log = logging.getLogger('sync_runtime')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(message)s', datefmt='%H:%M:%S')
@@ -15,7 +15,7 @@ BASE = pathlib.Path(__file__).resolve().parent.parent
 DATA = BASE / 'data'
 DATA.mkdir(exist_ok=True)
 SYNC_STATUS = DATA / 'sync_status.json'
-SESSIONS_ROOT = get_openclaw_home() / 'agents'
+SESSIONS_ROOT = get_runtime_home() / 'agents'
 
 
 def write_status(**kwargs):
@@ -43,7 +43,6 @@ def state_from_session(age_ms, aborted):
 
 def detect_official(agent_id):
     mapping = {
-        'main':    ('储君', '太子'),        # legacy id for taizi
         'taizi':   ('储君', '太子'),
         'zhongshu': ('中书令', '中书省'),
         'menxia':  ('侍中', '门下省'),
@@ -188,7 +187,7 @@ def build_task(agent_id, session_key, row, now_ms):
             'review': f"updatedAt={ms_to_str(updated_at)}",
             'dispatch': f"sessionKey={session_key}",
         },
-        'ac': '来自 OpenClaw runtime sessions 的实时映射',
+        'ac': '来自 Claude Code 会话日志的实时映射',
         'activity': load_activity(session_file, limit=10),
         'sourceMeta': {
             'agentId': agent_id,
@@ -326,13 +325,13 @@ def main():
             ok=True,
             lastSyncAt=now,
             durationMs=duration_ms,
-            source='openclaw_runtime_sessions',
+            source='claude_code_sessions',
             recordCount=len(tasks),
             scannedSessionFiles=scan_files,
             missingFields={},
             error=None,
         )
-        log.info(f'synced {len(tasks)} tasks from openclaw runtime in {duration_ms}ms')
+        log.info(f'synced {len(tasks)} tasks from claude code sessions in {duration_ms}ms')
 
     except Exception as e:
         duration_ms = int((time.time() - start) * 1000)
@@ -340,7 +339,7 @@ def main():
             ok=False,
             lastSyncAt=now,
             durationMs=duration_ms,
-            source='openclaw_runtime_sessions',
+            source='claude_code_sessions',
             recordCount=0,
             missingFields={},
             error=f'{type(e).__name__}: {e}',

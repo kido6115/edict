@@ -27,10 +27,10 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     debug: bool = False
 
-    # ── OpenClaw ──
-    openclaw_gateway_url: str = "http://localhost:18789"
-    openclaw_bin: str = "openclaw"
-    openclaw_project_dir: str | None = None
+    # ── Claude Code ──
+    claude_bin: str = "claude"
+    claude_project_dir: str | None = None          # 项目根目录（含 .claude/agents）
+    claude_permission_mode: str = "acceptEdits"     # 传给 claude --permission-mode
 
     # ── Legacy 兼容 ──
     legacy_data_dir: str = "../data"
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # ── 调度参数 ──
     stall_threshold_sec: int = 180
     max_dispatch_retry: int = 3
-    dispatch_timeout_sec: int = 300
+    dispatch_timeout_sec: int = 900
     heartbeat_interval_sec: int = 30
     scheduler_scan_interval_seconds: int = 60
 

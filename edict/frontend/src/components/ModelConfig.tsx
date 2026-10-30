@@ -77,7 +77,7 @@ export default function ModelConfig() {
     try {
       const r = await api.setModel(agentId, model);
       if (r.ok) {
-        setStatusMap((p) => ({ ...p, [agentId]: { cls: 'ok', text: '✅ 已提交，Gateway 重启中（约5秒）' } }));
+        setStatusMap((p) => ({ ...p, [agentId]: { cls: 'ok', text: '✅ 已提交，下次调用该 Agent 时生效' } }));
         toast(agentId + ' 模型已更改', 'ok');
         setTimeout(() => loadAgentConfig(), 5500);
       } else {
@@ -152,7 +152,7 @@ export default function ModelConfig() {
             }}>应用</button>
           {channelStatus && <span style={{ fontSize: 12, color: channelStatus.startsWith('✅') ? 'var(--success)' : 'var(--danger)' }}>{channelStatus}</span>}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)' }}>自动派发时使用的 OpenClaw 通知渠道（需已在 openclaw.json 中配置对应 channel）</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)' }}>保留字段（Claude Code 版派发不经消息渠道，此设置仅作记录）</div>
       </div>
 
       {/* Change Log */}
